@@ -26,7 +26,7 @@ async function run() {
 
     const db = client.db("docappoint");
     const doctorsCollection = db.collection("doctors");
-    const appointmentsCollection = db.collection("appointments")
+    const appointmentsCollection = db.collection("appointments");
 
     // get all doctors
     app.get("/doctors", async (req, res) => {
@@ -59,15 +59,23 @@ async function run() {
       res.send(result);
     });
 
-
     // get appointments by user email
-app.get('/appointments', async (req, res) => {
-  const email = req.query.email
-  const query = email ? { userEmail: email } : {}
-  const result = await appointmentsCollection.find(query).toArray()
-  res.send(result)
-})
+    app.get("/appointments", async (req, res) => {
+      const email = req.query.email;
+      const query = email ? { userEmail: email } : {};
+      const result = await appointmentsCollection.find(query).toArray();
+      res.send(result);
+    });
 
+    // update appointment
+    app.patch("/appointments/:id", async (req, res) => {
+      const id = req.params.id;
+      const updated = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = { $set: updated };
+      const result = await appointmentsCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
   } finally {
     // keep open
   }
