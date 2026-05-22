@@ -2,15 +2,13 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
+
 const app = express();
 const port = process.env.PORT || 5000;
 
-// middleware
 app.use(cors());
 app.use(express.json());
 
-// mongodb
 const uri = process.env.DB_URI;
 
 const client = new MongoClient(uri, {
@@ -21,27 +19,6 @@ const client = new MongoClient(uri, {
   },
 });
 
-const JWKS = createRemoteJWKSet(new URL("http://localhost:3000/api/auth/jwks"));
-
-const verifyToken = async (req, res, next) => {
-  const authHeader = req?.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  const token = authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, JWKS);
-    next();
-  } catch (error) {
-    return res.status(403).json({ message: "Forbidden" });
-  }
-};
-
 async function run() {
   try {
     await client.connect();
@@ -50,13 +27,11 @@ async function run() {
     const doctorsCollection = db.collection("doctors");
     const appointmentsCollection = db.collection("appointments");
 
-    // get all doctors
     app.get("/doctors", async (req, res) => {
       const result = await doctorsCollection.find().toArray();
       res.send(result);
     });
 
-    // get top 3 rated doctors
     app.get("/doctors/top", async (req, res) => {
       const result = await doctorsCollection
         .find()
@@ -66,7 +41,6 @@ async function run() {
       res.send(result);
     });
 
-    // get single doctor
     app.get("/doctors/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -74,23 +48,20 @@ async function run() {
       res.send(result);
     });
 
-    // book appointment (protected)
-    app.post("/appointments", verifyToken, async (req, res) => {
+    app.post("/appointments", async (req, res) => {
       const appointment = req.body;
       const result = await appointmentsCollection.insertOne(appointment);
       res.send(result);
     });
 
-    // get appointments by user email (protected)
-    app.get("/appointments", verifyToken, async (req, res) => {
+    app.get("/appointments", async (req, res) => {
       const email = req.query.email;
       const query = email ? { userEmail: email } : {};
       const result = await appointmentsCollection.find(query).toArray();
       res.send(result);
     });
 
-    // update appointment (protected)
-    app.patch("/appointments/:id", verifyToken, async (req, res) => {
+    app.patch("/appointments/:id", async (req, res) => {
       const id = req.params.id;
       const updated = req.body;
       const filter = { _id: new ObjectId(id) };
@@ -99,16 +70,14 @@ async function run() {
       res.send(result);
     });
 
-    // delete appointment (protected)
-    app.delete("/appointments/:id", verifyToken, async (req, res) => {
+    app.delete("/appointments/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await appointmentsCollection.deleteOne(query);
       res.send(result);
     });
-  } finally {
-    // keep open
-  }
+
+  } finally {}
 }
 
 run().catch(console.dir);
