@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -19,6 +20,27 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const JWKS = createRemoteJWKSet(new URL("http://localhost:3000/api/auth/jwks"));
+
+const verifyToken = async (req, res, next) => {
+  const authHeader = req?.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  const token = authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+};
 
 async function run() {
   try {
@@ -52,23 +74,23 @@ async function run() {
       res.send(result);
     });
 
-    // book appointment
-    app.post("/appointments", async (req, res) => {
+    // book appointment (protected)
+    app.post("/appointments", verifyToken, async (req, res) => {
       const appointment = req.body;
       const result = await appointmentsCollection.insertOne(appointment);
       res.send(result);
     });
 
-    // get appointments by user email
-    app.get("/appointments", async (req, res) => {
+    // get appointments by user email (protected)
+    app.get("/appointments", verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = email ? { userEmail: email } : {};
       const result = await appointmentsCollection.find(query).toArray();
       res.send(result);
     });
 
-    // update appointment
-    app.patch("/appointments/:id", async (req, res) => {
+    // update appointment (protected)
+    app.patch("/appointments/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const updated = req.body;
       const filter = { _id: new ObjectId(id) };
@@ -77,7 +99,8 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/appointments/:id", async (req, res) => {
+    // delete appointment (protected)
+    app.delete("/appointments/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await appointmentsCollection.deleteOne(query);
