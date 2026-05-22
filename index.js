@@ -60,6 +60,14 @@ async function run() {
     });
 
 
+    // get appointments by user email
+app.get('/appointments', async (req, res) => {
+  const email = req.query.email
+  const query = email ? { userEmail: email } : {}
+  const result = await appointmentsCollection.find(query).toArray()
+  res.send(result)
+})
+
   } finally {
     // keep open
   }
