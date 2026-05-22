@@ -76,6 +76,13 @@ async function run() {
       const result = await appointmentsCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
+    app.delete("/appointments/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await appointmentsCollection.deleteOne(query);
+      res.send(result);
+    });
   } finally {
     // keep open
   }
